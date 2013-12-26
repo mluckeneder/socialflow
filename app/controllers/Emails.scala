@@ -18,6 +18,7 @@ trait SocialRequestHandler {
 object PhotoPostHandler extends SocialRequestHandler {
     def apply(request: SocialRequest) = {
         val twitter = new TwitterConnector
+        println(request.subject)
         request.attachment.map { attachment =>
             val fileStream = new ByteArrayInputStream(attachment.ByteContent)
 
