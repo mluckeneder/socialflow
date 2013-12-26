@@ -5,14 +5,11 @@ import play.api.mvc._
 import play.api.mvc.BodyParsers.parse.json
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import org.apache.commons.codec.binary.Base64
+import twitter4j._
+import twitter4j.auth._
+import java.io.ByteArrayInputStream
 
-
-case class SocialRequest(subject: String, attachment: Seq[AttachedPhoto]){}
-case class AttachedPhoto(Name: String, Content: String, ContentType: String, ContentID: String, ContentLength: Int){
-
-    val ByteContent = Base64.decodeBase64(Content.getBytes("utf-8"))
-}
+import handlers._
 
 trait SocialRequestHandler {
     def apply(request: SocialRequest)
@@ -20,51 +17,52 @@ trait SocialRequestHandler {
 
 object PhotoPostHandler extends SocialRequestHandler {
     def apply(request: SocialRequest) = {
-        println("Photo Post")
+        val twitter = new TwitterConnector
+        request.attachment.map { attachment =>
+            val fileStream = new ByteArrayInputStream(attachment.ByteContent)
+
+            val statusUpdate = new StatusUpdate(request.subject)
+            statusUpdate.setMedia(attachment.Name, fileStream)
+            println("Post Photo!")
+            // twitter.client.updateStatus(statusUpdate)
+        }
+
     }
 }
 
 object TextPostHandler extends SocialRequestHandler {
     def apply(request: SocialRequest) = {
-        println("Text Post")
+        val twitter = new TwitterConnector
+        println("Post Photo!")
+        // twitter.client.updateStatus(request.subject)
     }
 }
 
-object SocialRequestParser {
-    def parse(json_body: JsValue): SocialRequest = {
+class TwitterConnector() {
+    val access_token = Play.current.configuration.getString("twitter.access_token").getOrElse("")
+    val access_token_secret = Play.current.configuration.getString("twitter.access_token_secret").getOrElse("")
 
-       implicit val attachmentReads: Reads[AttachedPhoto] = (
-          (__ \\ "Name").read[String] ~
-          (__ \\ "Content").read[String] ~
-          (__ \\ "ContentType").read[String] ~
-          (__ \\ "ContentID").read[String] ~
-          (__ \\ "ContentLength").read[Int]
-        )(AttachedPhoto)
+    val consumer_key = Play.current.configuration.getString("twitter.consumer_key").getOrElse("")
+    val consumer_secret = Play.current.configuration.getString("twitter.consumer_secret").getOrElse("")
 
-        // Extracting fields
-        val maybeSubject = (json_body \ "Subject").validate[String]
-        val maybeAttachments = (json_body \ "Attachments").validate[List[AttachedPhoto]]
+    val client = new TwitterFactory().getInstance()
 
-        val subject = maybeSubject match {
-            case JsSuccess(subject: String, p: JsPath) => subject
-            case _ => throw new Exception
-        }
+    // Authorising with your Twitter Application credentials
+    client.setOAuthConsumer(
+        consumer_key,
+        consumer_secret
+    )
 
-        val attachments = maybeAttachments match {
-            case JsSuccess(atts: List[AttachedPhoto], p: JsPath) =>
-                atts
-            case _ => throw new Exception
-        }
-
-        val social_request = new SocialRequest(
-            subject,
-            attachments
+    client.setOAuthAccessToken(
+        new AccessToken(
+            access_token,
+            access_token_secret
         )
+    )
 
-        return social_request
-    }
 
 }
+
 
 object Emails extends Controller {
 
@@ -72,8 +70,8 @@ object Emails extends Controller {
         val social_request = SocialRequestParser.parse(request.body)
 
         social_request match {
-            case SocialRequest(subject: String, atts: Seq[AttachedPhoto]) if atts.length > 0 => PhotoPostHandler(social_request)
-            case SocialRequest(subject: String, Nil) => TextPostHandler(social_request)
+            case SocialRequest(subject: String, atts: Some[AttachedPhoto]) => PhotoPostHandler(social_request)
+            case SocialRequest(subject: String, None) => TextPostHandler(social_request)
             case _ => None
         }
 
