@@ -10,12 +10,9 @@ import play.api.libs.functional.syntax._
 case class SocialRequest(subject: String, attachment: Option[Seq[AttachedPhoto]]){}
 case class AttachedPhoto(Name: String, Content: String, ContentType: String, ContentID: String, ContentLength: Int)
 
-object Emails extends Controller {
-
-    def insert = Action(json) { request =>
-        val json_body = request.body
-
-        implicit val attachmentReads: Reads[AttachedPhoto] = (
+object SocialRequestParser {
+    def parse(json_body: JsValue): SocialRequest = {
+       implicit val attachmentReads: Reads[AttachedPhoto] = (
           (__ \\ "Name").read[String] and
           (__ \\ "Content").read[String] and
           (__ \\ "ContentType").read[String] and
@@ -25,13 +22,29 @@ object Emails extends Controller {
 
         // Extracting fields
         // TODO remove as[T]
-        val subject = (json_body \ "Subject").as[String]
+        val maybeSubject = (json_body \ "Subject").validate[String]
         val attachments = (json_body \ "Attachments").asOpt[List[AttachedPhoto]]
         println(attachments)
+        println(maybeSubject)
+        maybeSubject match {
+            case JsSuccess(subject: String, p: JsPath) => println(subject)
+            case _ => throw new Exception
+        }
+
         val social_request = new SocialRequest(
-            subject,
+            "Hello",
             attachments
         )
+
+        return social_request
+    }
+
+}
+
+object Emails extends Controller {
+
+    def insert = Action(json) { request =>
+        val social_request = SocialRequestParser.parse(request.body)
 
         social_request match {
             case SocialRequest(subject: String, Some(atts: Seq[AttachedPhoto])) if atts.length > 0 => Ok("upload attachment")
