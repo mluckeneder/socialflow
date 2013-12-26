@@ -5,34 +5,59 @@ import play.api.mvc._
 import play.api.mvc.BodyParsers.parse.json
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
+import org.apache.commons.codec.binary.Base64
 
 
-case class SocialRequest(subject: String, attachment: Option[Seq[AttachedPhoto]]){}
-case class AttachedPhoto(Name: String, Content: String, ContentType: String, ContentID: String, ContentLength: Int)
+case class SocialRequest(subject: String, attachment: Seq[AttachedPhoto]){}
+case class AttachedPhoto(Name: String, Content: String, ContentType: String, ContentID: String, ContentLength: Int){
+
+    val ByteContent = Base64.decodeBase64(Content.getBytes("utf-8"))
+}
+
+trait SocialRequestHandler {
+    def apply(request: SocialRequest)
+}
+
+object PhotoPostHandler extends SocialRequestHandler {
+    def apply(request: SocialRequest) = {
+        println("Photo Post")
+    }
+}
+
+object TextPostHandler extends SocialRequestHandler {
+    def apply(request: SocialRequest) = {
+        println("Text Post")
+    }
+}
 
 object SocialRequestParser {
     def parse(json_body: JsValue): SocialRequest = {
+
        implicit val attachmentReads: Reads[AttachedPhoto] = (
-          (__ \\ "Name").read[String] and
-          (__ \\ "Content").read[String] and
-          (__ \\ "ContentType").read[String] and
-          (__ \\ "ContentID").read[String] and
+          (__ \\ "Name").read[String] ~
+          (__ \\ "Content").read[String] ~
+          (__ \\ "ContentType").read[String] ~
+          (__ \\ "ContentID").read[String] ~
           (__ \\ "ContentLength").read[Int]
         )(AttachedPhoto)
 
         // Extracting fields
-        // TODO remove as[T]
         val maybeSubject = (json_body \ "Subject").validate[String]
-        val attachments = (json_body \ "Attachments").asOpt[List[AttachedPhoto]]
-        println(attachments)
-        println(maybeSubject)
-        maybeSubject match {
-            case JsSuccess(subject: String, p: JsPath) => println(subject)
+        val maybeAttachments = (json_body \ "Attachments").validate[List[AttachedPhoto]]
+
+        val subject = maybeSubject match {
+            case JsSuccess(subject: String, p: JsPath) => subject
+            case _ => throw new Exception
+        }
+
+        val attachments = maybeAttachments match {
+            case JsSuccess(atts: List[AttachedPhoto], p: JsPath) =>
+                atts
             case _ => throw new Exception
         }
 
         val social_request = new SocialRequest(
-            "Hello",
+            subject,
             attachments
         )
 
@@ -47,11 +72,13 @@ object Emails extends Controller {
         val social_request = SocialRequestParser.parse(request.body)
 
         social_request match {
-            case SocialRequest(subject: String, Some(atts: Seq[AttachedPhoto])) if atts.length > 0 => Ok("upload attachment")
-            case SocialRequest(subject: String, Some(Nil)) => Ok("post only")
-            case _ => Ok("Damn")
+            case SocialRequest(subject: String, atts: Seq[AttachedPhoto]) if atts.length > 0 => PhotoPostHandler(social_request)
+            case SocialRequest(subject: String, Nil) => TextPostHandler(social_request)
+            case _ => None
         }
-        // Ok("done")
+
+        Ok("Handled")
+
     }
 
 }
