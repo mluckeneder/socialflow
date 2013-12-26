@@ -1,4 +1,4 @@
-package handlers
+package socialflow
 
 import org.apache.commons.codec.binary.Base64
 import play.api.libs.json._

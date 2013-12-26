@@ -9,7 +9,7 @@ import twitter4j._
 import twitter4j.auth._
 import java.io.ByteArrayInputStream
 
-import handlers._
+import socialflow._
 
 trait SocialRequestHandler {
     def apply(request: SocialRequest)
