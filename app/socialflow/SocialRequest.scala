@@ -8,7 +8,9 @@ import play.api.mvc.BodyParsers.parse.json
 case class SocialRequest(subject: String, attachment: Option[AttachedPhoto]){}
 case class AttachedPhoto(Name: String, Content: String, ContentType: String, ContentID: String, ContentLength: Int){
 
-    val ByteContent = Base64.decodeBase64(Content.getBytes("utf-8"))
+    val ByteContent = Base64.decodeBase64(
+      Content.getBytes("utf-8")
+    )
 }
 
 object SocialRequestParser {
