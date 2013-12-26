@@ -24,7 +24,7 @@ object PhotoPostHandler extends SocialRequestHandler {
             val statusUpdate = new StatusUpdate(request.subject)
             statusUpdate.setMedia(attachment.Name, fileStream)
             println("Post Photo!")
-            // twitter.client.updateStatus(statusUpdate)
+            twitter.client.updateStatus(statusUpdate)
         }
 
     }
@@ -33,8 +33,8 @@ object PhotoPostHandler extends SocialRequestHandler {
 object TextPostHandler extends SocialRequestHandler {
     def apply(request: SocialRequest) = {
         val twitter = new TwitterConnector
-        println("Post Photo!")
-        // twitter.client.updateStatus(request.subject)
+        println("Post Status!")
+        twitter.client.updateStatus(request.subject)
     }
 }
 
